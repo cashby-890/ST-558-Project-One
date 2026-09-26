@@ -1,0 +1,53 @@
+---
+title: "ST 558 Fall 2026 Project One"
+author: "Cody Ashby"
+format: html
+editor: visual
+---
+
+This project will involve querying a census API, getting specific data sets from it, and writing customized functions that summarize and plot certain parts of the data.
+
+```{r}
+# URLs to use:
+
+#Info about PUMS API
+https://www.census.gov/data/developers/data-sets/census-microdata-api.html
+
+#Variables for 2024  
+https://api.census.gov/data/2024/acs/acs1/pums/variables.html
+
+#Allows accuess to certain subsets of data
+https://data.census.gov/app/mdat/
+  
+#Data sets to read in and parse  
+https://api.census.gov/data/2022/acs/acs1/pums/variables.json
+
+https://api.census.gov/data/2023/acs/acs1/pums/variables.json
+
+https://api.census.gov/data/2021/acs/acs1/pums/variables.json
+
+https://api.census.gov/data/2024/acs/acs1/pums/variables.json
+
+#Use this to specify geography level
+https://api.census.gov/data/2024/acs/acs1/pums/geography.html
+
+
+```
+
+# Part One: Data Processing
+
+## Parsing Variable Names
+
+## Parsing API Data
+
+## Combining Years
+
+# Part Two: Writing a Generic Function for Summarizing
+
+## Generic Functions
+
+## Numeric Summaries
+
+## Graphic Summaries
+
+# Results

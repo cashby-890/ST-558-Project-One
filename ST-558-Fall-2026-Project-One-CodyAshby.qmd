@@ -34,13 +34,115 @@ https://api.census.gov/data/2024/acs/acs1/pums/geography.html
 
 ```
 
+
 # Part One: Data Processing
+
+Since we'll be looking at a small handful of `json` files, we'll need to install (if necessary) a couple of packages, namely the `httr` and `jsonlite` packages.
+
+```{r}
+# Install if necessary
+install.packages("httr")
+
+library(httr)
+library(jsonlite)
+library(tidyverse)
+```
+
+
 
 ## Parsing Variable Names
 
+Now, a function will be created to retrieve the URL, parse the JSON, and pull out a list of variables with their values. 
+
+```{r}
+#Collection of variables for 2021 and 2022 data
+vars_list_one=c("AGEP","GRPIP","JWAP","JWDP","JWMNP","PWGTP",
+                "FER","HHL","SCH","SCHL","SEX","ST","REGION","DIVISION")
+#Collection of variables for 2023 and 2024 data
+vars_list_two=c("AGEP","GRPIP","JWAP","JWDP","JWMNP","PWGTP",
+                "FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")
+
+get_PUMS_vars=function(year){
+  API_url=GET(paste0("https://api.census.gov/data/",year,"/acs/acs1/pums/variables.json"))
+  parsed_url<-fromJSON(rawToChar(API_url$content))
+  parsed_vars=parsed_url$variables
+  vars_list_one=c("AGEP","GRPIP","JWAP","JWDP","JWMNP","PWGTP",
+                "FER","HHL","SCH","SCHL","SEX","ST","REGION","DIVISION")
+  vars_list_two=c("AGEP","GRPIP","JWAP","JWDP","JWMNP","PWGTP",
+                "FER","HHL","SCH","SCHL","SEX","STATE","REGION","DIVISION")
+  if(year %in% c(2021,2022)){
+    parsed_vars_select=parsed_vars[vars_list_one]
+  }
+  else if(year %in% c(2023,2024)){
+    parsed_vars_select=parsed_vars[vars_list_two]
+  }
+  else{
+    return("Not a valid year! Use 2021, 2022, 2023, or 2024.")
+  }
+  return(parsed_vars_select)
+}
+
+PUMS_vars_2021=get_PUMS_vars(2021)
+PUMS_vars_2022=get_PUMS_vars(2022)
+PUMS_vars_2023=get_PUMS_vars(2023)
+PUMS_vars_2024=get_PUMS_vars(2024)
+
+all_PUMS_vars=c(PUMS_vars_2021,PUMS_vars_2022,PUMS_vars_2023,PUMS_vars_2024)
+
+saveRDS(all_PUMS_vars,"all_PUMS_vars.rds")
+```
+
+The variables of interest are AGEP, GASP, GRPIP, JWAP, JWMNP, PWGTP, FER, HHL, SCL, SCHL, SEX, ST (2021 and 2022) or STATE (2023 and 2024), REGION, and DIVISION.
+
+Four lists will be required for each of the years 2021, 2022, 2023, and 2024 and will be saved in an `.rds` file under the `data` folder in the repository.
+
 ## Parsing API Data
 
+Ultimate goal is to write a function the queries the PUMS API and returns a nicely formatted tibble using the typical process.
+
+```{r}
+#Use API Key:  af787134d167e33ea1a00ea6f50f6961418ab20b
+
+# Define API url from the json links above and allow the year to vary.
+
+get_PUMS_data<-function(year=2024){
+  if(year %in% c(2023,2024)){
+    API_url=httr::GET(paste("https://api.census.gov/data/",year,"/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,STATE,REGION,DIVISION&key=af787134d167e33ea1a00ea6f50f6961418ab20b",sep=""))
+  }
+  else if(year %in% c(2021,2022)){
+    API_url=httr::GET(paste("https://api.census.gov/data/",year,"/acs/acs1/pums?geT=AGEP,GASP,GRPIP,JWAP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=af787134d167e33ea1a00ea6f50f6961418ab20b",sep=""))
+  }
+  else{
+    return("Not a valid year! Use 2021, 2022, 2023, or 2024.")
+  }
+  parsed_data<-fromJSON(rawToChar(API_url$content))
+  formatted_data=as_tibble(parsed_data[data])
+  return(formatted_data)
+}
+
+```
+
+```{r}
+# Write helper function to take what is returned by GET() and turn it into a tibble
+
+# Wrap the helper function into a function that also parses the data by querying the API and allow the user to alter the following: year (default is 2024), numeric variables (AGEP and PWGTP as default; options should include AGEP, GASP, GRPIP, JWAP, JWDP, and JWMNP; also, turn these variables into numeric values or time values via lubridate; for any missing time values, use "NA"), categorical variables (SEX as default; options should include FER, HHL, SCH, SCHL and SEX; turn these variables into factors with appropriate levels - may need to use the rds file).
+
+# If user specifies variable not included above, or does not use required variables, retuen an error.
+
+# Also, specify geography level: region, division, or state (last as default). Do not use "All". Only one is allowed; if more than one or "all" is input, return an error.
+
+#Specify specific region, division, or state for subsetting (specify default level for each; use allowable values from rds file; include option for returning "all" values)
+
+#Before returning tibble, include this line of code:
+
+#class(tbd_tibble) <- c("census",class(tbd_tibble))
+
+
+```
+
 ## Combining Years
+
+Write function that allows specification of multiple years of data along with other options from previous part. Call single year function as many times as needed, then combine into one final tibble (include year variable in final tibble).
 
 # Part Two: Writing a Generic Function for Summarizing
 

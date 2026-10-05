@@ -98,37 +98,71 @@ Four lists will be required for each of the years 2021, 2022, 2023, and 2024 and
 
 ## Parsing API Data
 
-Ultimate goal is to write a function the queries the PUMS API and returns a nicely formatted tibble using the typical process.
+The ultimate goal for this section is to write a function that queries the PUMS API and returns a nicely formatted tibble. To kick things off, we'll use a helper function as defined below:
 
 ```{r}
-#Use API Key:  af787134d167e33ea1a00ea6f50f6961418ab20b
-
-# Define API url from the json links above and allow the year to vary.
-
-get_PUMS_data<-function(year=2024){
+get_PUMS_data=function(year){
   if(year %in% c(2023,2024)){
-    API_url=httr::GET(paste("https://api.census.gov/data/",year,"/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,STATE,REGION,DIVISION&key=af787134d167e33ea1a00ea6f50f6961418ab20b",sep=""))
+    test_url=GET(paste0("https://api.census.gov/data/",year,"/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,STATE,REGION,DIVISION&key=af787134d167e33ea1a00ea6f50f6961418ab20b"))
   }
   else if(year %in% c(2021,2022)){
-    API_url=httr::GET(paste("https://api.census.gov/data/",year,"/acs/acs1/pums?geT=AGEP,GASP,GRPIP,JWAP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=af787134d167e33ea1a00ea6f50f6961418ab20b",sep=""))
+    test_url=GET(paste0("https://api.census.gov/data/",year,"/acs/acs1/pums?get=AGEP,GASP,GRPIP,JWAP,JWDP,JWMNP,PWGTP,FER,HHL,SCH,SCHL,SEX,ST,REGION,DIVISION&key=af787134d167e33ea1a00ea6f50f6961418ab20b"))
   }
   else{
-    return("Not a valid year! Use 2021, 2022, 2023, or 2024.")
+    stop("Not a valid year! Use 2021, 2022, 2023, or 2024.")
   }
-  parsed_data<-fromJSON(rawToChar(API_url$content))
-  formatted_data=as_tibble(parsed_data[data])
+  parsed_url=fromJSON(rawToChar(test_url$content))
+  colnames(parsed_url)=as.character(parsed_url[1,])
+  formatted_data=as_tibble(parsed_url[-1,])
   return(formatted_data)
 }
-
 ```
 
+Next, we'll use elements of that helper function to create a new function that allows a user to query the API, select certain variables from that data set, and parse it.
+
 ```{r}
-# Write helper function to take what is returned by GET() and turn it into a tibble
+select_PUMS_data=function(year=2024,numvar1="PWGTP",other_numvars="AGEP",catvar1="SEX",other_catvars=NULL,level=contains("ST"),sublevel=NULL){
+  all_PUMS_vars=readRDS(all_PUMS_vars.rds)
+  if(year %in% c(2021,2022,2023,2024)){
+  API_url=GET(paste0("https://api.census.gov/data/",year,"/acs/acs1/pums?get=",numvar1,other_numvars,catvar1,other_catvars,level,"&key=af787134d167e33ea1a00ea6f50f6961418ab20b"))
+  }
+  else{
+    stop("Not a valid year! Use 2021, 2022, 2023, or 2024.")
+  }
+  if(c(numvar1,other_numvars) %in% c("PWGTP","AGEP","GASP","GRPIP","JWAP","JWDP","JWMNP")){
+    c(numvar1,other_numvars) <- as.numeric(c(numvar1,other_numvars))
+    if(other_numvars %in% c("JWAP","JWDP")){
+      other_numvars <- factor(other_numvars,labels=other_numvars$values$item,levels=other_numvars$values$item)
+    }
+  }
+  if(c(catvar1,other_catvars) %in% c("SEX","FER","HHL","SCH","SCHL")){
+    c(catvar1,other_catvars) <- factor(c(catvar1,other_catvars),labels=c(catvar1,other_catvars)$values$item,levels=c(catvar1,other_catvars)$values$item)
+  }
+  if(level=="REGION"){
+    sublevel=="South"
+  }
+  if(level=="DIVISION"){
+    sublevel=="South Atlantic (South Region)"
+  }
+  if(level==contains("ST")){
+    sublevel=="North Carolina/NC"
+  }
+  if (!(c(numvar1,other_numvars,catvar1,other_catvars,level) %in% all_PUMS_vars)){
+    stop("Not a valid variable!")
+  }
+  if(level=="All"){
+    stop("Only ONE geography level is allowed! Region, Division, or State.")
+  }
+  parsed_url=fromJSON(rawToChar(API_url$content))
+  colnames(parsed_url)=as.character(parsed_url[1,])
+  formatted_data=as_tibble(parsed_url[-1,])
+  class(formatted_data) <- c("census",class(formatted_data))
+  return(formatted_data)
+}
 
 # Wrap the helper function into a function that also parses the data by querying the API and allow the user to alter the following: year (default is 2024), numeric variables (AGEP and PWGTP as default; options should include AGEP, GASP, GRPIP, JWAP, JWDP, and JWMNP; also, turn these variables into numeric values or time values via lubridate; for any missing time values, use "NA"), categorical variables (SEX as default; options should include FER, HHL, SCH, SCHL and SEX; turn these variables into factors with appropriate levels - may need to use the rds file).
 
 # If user specifies variable not included above, or does not use required variables, retuen an error.
-
 # Also, specify geography level: region, division, or state (last as default). Do not use "All". Only one is allowed; if more than one or "all" is input, return an error.
 
 #Specify specific region, division, or state for subsetting (specify default level for each; use allowable values from rds file; include option for returning "all" values)
@@ -142,14 +176,59 @@ get_PUMS_data<-function(year=2024){
 
 ## Combining Years
 
+Here, we'll use this perplexing function multiple times to create a tibble that covers multiple years while still subsetting the variables we need.
+
 Write function that allows specification of multiple years of data along with other options from previous part. Call single year function as many times as needed, then combine into one final tibble (include year variable in final tibble).
+
+```{r}
+select_multi_PUMS_data<-function(year1,year2,year3=NULL,year4=NULL){
+  PUMS_one=select_PUMS_data(year1,numvar1="PWGTP",other_numvars="AGEP",catvar1="SEX",other_catvars=NULL,level=contains("ST"),sublevel=NULL)
+  PUMS_two=select_PUMS_data(year2,numvar1="PWGTP",other_numvars="AGEP",catvar1="SEX",other_catvars=NULL,level=contains("ST"),sublevel=NULL)
+  if(!is.null(year3) | !is.null(year4)){
+      PUMS_three=select_PUMS_data(year3,numvar1="PWGTP",other_numvars="AGEP",catvar1="SEX",other_catvars=NULL,level=contains("ST"),sublevel=NULL)
+      PUMS_four=select_PUMS_data(year4,numvar1="PWGTP",other_numvars="AGEP",catvar1="SEX",other_catvars=NULL,level=contains("ST"),sublevel=NULL)
+    }
+  bind_rows(PUMS_one,PUMS_two,PUMS_three,PUMS_four)
+}
+```
 
 # Part Two: Writing a Generic Function for Summarizing
 
 ## Generic Functions
 
+Not sure if we're actually supposed to do anything here? If so, then...
+
+```{r}
+summary.census <- function(tibble){
+  summary(tibble)
+}
+```
+
 ## Numeric Summaries
 
-## Graphic Summaries
+Write a function that produces means and stdevs for numeric variables (ignoring time variables) and counts for categorical variables.
+
+```{r}
+number_sum <- function(tibble,numvar,...,catvar,...){
+  weights=tibble$PWGTP
+  mean=sum((tibble$numvar)*weights)/sum(weights)
+  sd=sqrt(sum((tibble$numvar)^2*weights)/sum(weights)-mean(tibble$numvar)^2)
+  count=table(tibble$catvar)
+  return(list(mean,sd,count))
+}
+```
+
+## Graphical Summaries
+
+Write generic `plot()` function that requires one categorical variable (including year) and one numeric variable; this should return a boxplot of the numeric variable at the levels of the categorical variable. Use `weight=PWGTP` in the `aes()` portion so that each row is treated appropriately.
+
+```{r}
+graph_sum <- function(catvar,numvar){
+  ggplot(data=tibble,aes(x=as.factor(catvar),y=numvar,weight=PWGTP)) +
+    geom_boxplot() + 
+    labs(x=get(catvar),y=get(numvar)) +
+    theme_minimal()
+}
+```
 
 # Results
